@@ -1,12 +1,14 @@
 pipeline {  
     environment {
-      registry = "osanamgcj/mobead_image_build"
-      registryCredential = 'dockerhub'
+      registry = "crsgui/mobead"
+      registryCredential = 'DockerHub'
       dockerImage = ''
     }
-    agent any 
+
+    agent any
+
     stages { 
-        stage('Lint Dockerfile'){ 
+        stage('Lint Dockerfile'){
             steps{
                 echo "Pipeline Usando Jenkinsfile"
                 sh 'docker run --rm -i hadolint/hadolint < Dockerfile'
@@ -19,12 +21,23 @@ pipeline {
                 }
             }
         }
-        stage('Delivery image') {
-            steps{
+
+        stage('Ask for confirmation') {
+            steps {
                 script {
-                  docker.withRegistry('https://registry-1.docker.io/v2/', 'dockerhub') {
-                   dockerImage.push("$BUILD_NUMBER")
-                  }
+                    timeout(time: 10, unit: 'MINUTES') {
+                        input(id: "Deploy", message: "Deploy ${BUILD_NUMBER}?", ok: 'Deploy Image')
+                    }
+                }
+            }
+        }
+
+        stage('Deploy Image') {
+            steps {
+                script {
+                    docker.withRegistry( '', registryCredential ) {
+                        dockerImage.push()
+                    }
                 }
             }
         }
