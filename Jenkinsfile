@@ -3,6 +3,7 @@ pipeline {
       registry = "crsgui/mobead"
       registryCredential = 'DockerHub'
       dockerImage = ''
+      developmentImage = ''
     }
 
     agent any
@@ -14,25 +15,49 @@ pipeline {
                 sh 'docker run --rm -i hadolint/hadolint < Dockerfile'
             }
         }
+
         stage('Build image') {
             steps{
                 script {
                     dockerImage = docker.build registry + ":$BUILD_NUMBER"
+                    developmentImage = docker.build registry + ":dev"
                 }
             }
         }
-
-        stage('Ask for confirmation') {
+        
+        stage('Remove old development container') {
             steps {
                 script {
-                    timeout(time: 10, unit: 'MINUTES') {
-                        input(id: "Deploy", message: "Deploy ${BUILD_NUMBER}?", ok: 'Deploy Image')
+                    try {
+                        sh "docker rm -f " + registry + ":dev"
+                    } catch (Exception e) {
+                        sh "echo $e"
                     }
                 }
             }
         }
 
-        stage('Deploy Image') {
+        stage ('Deploy into development') {
+            steps {
+                script {
+                    docker.withRegistry('', registryCredential) {
+                        developmentImage.push()
+                    }
+                }
+            }
+        }
+
+        stage('Ask for confirmation to deploy into production') {
+            steps {
+                script {
+                    timeout(time: 10, unit: 'MINUTES') {
+                        input(id: "Deploy", message: "Deploy ${BUILD_NUMBER}?", ok: 'Deploy Production Image')
+                    }
+                }
+            }
+        }
+
+        stage('Deploy Production Image') {
             steps {
                 script {
                     docker.withRegistry( '', registryCredential ) {
