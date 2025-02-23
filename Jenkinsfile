@@ -24,7 +24,25 @@ pipeline {
                 }
             }
         }
-        
+
+        stage('SCM Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool 'criss-sonarqube'
+
+                    withSonarQubeEnv(installationName: 'SonarQubeServer', credentialsId: 'SonarQubePass') {
+                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=criss-jenkins -Dsonar.sources=. "
+                    }
+                }
+            }
+        }
+
         stage('Remove old development container') {
             steps {
                 script {
