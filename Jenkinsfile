@@ -3,7 +3,8 @@ pipeline {
       registry = "crsgui/mobead"
       registryCredential = 'DockerHub'
       dockerImage = ''
-      developmentImage = ''
+      productionImageName = 'mobead_image_production'
+      devImageName = 'mobead_image_development'
     }
 
     agent any
@@ -20,7 +21,6 @@ pipeline {
             steps{
                 script {
                     dockerImage = docker.build registry + ":$BUILD_NUMBER"
-                    developmentImage = docker.build registry + ":dev"
                 }
             }
         }
@@ -43,24 +43,28 @@ pipeline {
             }
         }
 
-        stage('Remove old development container') {
+        stage ('Push image') {
             steps {
                 script {
-                    try {
-                        sh "docker rm -f " + registry + ":dev"
-                    } catch (Exception e) {
-                        sh "echo $e"
+                    docker.withRegistry('', registryCredential) {
+                        dockerImage.push()
                     }
                 }
             }
         }
-
-        stage ('Deploy into development') {
+        
+        stage('Run development image') {
             steps {
                 script {
-                    docker.withRegistry('', registryCredential) {
-                        developmentImage.push()
+                    try {
+                        sh "docker rm -f ${devImageName}"
+                    } catch (Exception e) {
+                        sh "echo $e";
                     }
+                }
+
+                script {
+                    sh "docker run -d -p 3001:80 --name=${devImageName} " + registry + ":$BUILD_NUMBER"
                 }
             }
         }
@@ -78,9 +82,15 @@ pipeline {
         stage('Deploy Production Image') {
             steps {
                 script {
-                    docker.withRegistry( '', registryCredential ) {
-                        dockerImage.push()
+                    try {
+                        sh "docker rm -f ${productionImageName}"
+                    } catch(Exception e) {
+                        sh "echo $e"
                     }
+                }
+
+                script {
+                    sh "docker run -d -p 3000:80 --name=${productionImageName} " + registry + ":$BUILD_NUMBER"
                 }
             }
         }

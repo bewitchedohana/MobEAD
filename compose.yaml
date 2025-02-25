@@ -9,7 +9,8 @@ services:
         aliases:
           - docker
     ports:
-      - 2376:2376
+      - 3000:3000
+      - 3001:3001
     volumes:
       - jenkins-certs:/certs/client
       - jenkins-data:/var/jenkins_home
